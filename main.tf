@@ -11,8 +11,20 @@ provider "aws" {
   region = "us-west-2"
 }
 
+locals {
+  vpc_cidr_block = "10.0.0.0/16"
+  private_subnets = {
+    "eks_example_private_1" = {
+      cidr_block = "10.0.16.0/24"
+    }
+    "eks_example_private_2" = {
+      cidr_block = "10.0.17.0/24"
+    }
+  }
+}
+
 resource "aws_vpc" "eks_example_vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block = local.vpc_cidr_block
   tags = {
     "Name" = "eks_example"
   }
@@ -20,6 +32,8 @@ resource "aws_vpc" "eks_example_vpc" {
 
 resource "aws_default_network_acl" "eks_example_default" {
   default_network_acl_id = aws_vpc.eks_example_vpc.default_network_acl_id
+
+  subnet_ids = [for s in aws_subnet.eks_example_private: s.id]
 
   # no rules defined, deny all traffic in this ACL
   tags = {
@@ -35,4 +49,12 @@ resource "aws_default_route_table" "eks_example_default" {
   tags = {
     "Name" = "eks_example"
   }
+}
+
+resource "aws_subnet" "eks_example_private" {
+  for_each   = local.private_subnets
+  vpc_id     = aws_vpc.eks_example_vpc.id
+  cidr_block = each.value.cidr_block
+
+  tags = { "Name" = each.key }
 }
