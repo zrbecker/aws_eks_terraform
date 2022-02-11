@@ -32,7 +32,9 @@ locals {
 }
 
 resource "aws_vpc" "eks_example_vpc" {
-  cidr_block = local.vpc_cidr_block
+  cidr_block           = local.vpc_cidr_block
+  enable_dns_hostnames = true
+
   tags = {
     "Name" = "eks_example"
   }
@@ -63,6 +65,10 @@ resource "aws_internet_gateway" "eks_example" {
   tags = {
     "Name" = "eks_example"
   }
+
+  depends_on = [
+    aws_vpc.eks_example_vpc
+  ]
 }
 
 resource "aws_eip" "eks_example_nat" {
@@ -71,7 +77,7 @@ resource "aws_eip" "eks_example_nat" {
 
 resource "aws_nat_gateway" "eks_example" {
   allocation_id = aws_eip.eks_example_nat.id
-  subnet_id     = sort([for s in aws_subnet.eks_example_public: s.id])[0]
+  subnet_id     = sort([for s in aws_subnet.eks_example_public : s.id])[0]
 
   tags = {
     "Name" = "eks_example"
@@ -134,6 +140,8 @@ resource "aws_subnet" "eks_example_public" {
   vpc_id     = aws_vpc.eks_example_vpc.id
   cidr_block = each.value.cidr_block
 
+  map_public_ip_on_launch = true
+
   tags = { "Name" = each.key }
 }
 
@@ -160,7 +168,7 @@ resource "aws_route_table" "eks_example_private" {
   vpc_id = aws_vpc.eks_example_vpc.id
 
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.eks_example.id
   }
 
